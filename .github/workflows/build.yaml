@@ -1,0 +1,116 @@
+name: Build
+
+on:
+  push:
+    branches: [ master ]
+    tags:
+    - 'v*'
+  pull_request:
+    branches: [ master ]
+
+jobs:
+
+  build:
+    name: Build
+    runs-on: ubuntu-18.04
+    steps:
+
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ^1.14
+      id: go
+
+    - name: Check out code
+      uses: actions/checkout@v2
+
+    - name: Build
+      run: make tmcevents
+
+    - name: Create distribution
+      run: make dist-all
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: tmcevents-linux-amd64.tar.gz
+        path: dist/tmcevents-linux-amd64.tar.gz
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: tmcevents-windows-amd64.zip
+        path: dist/tmcevents-windows-amd64.zip
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: tmcevents-darwin-amd64.tar.gz
+        path: dist/tmcevents-darwin-amd64.tar.gz
+
+  release:
+    name: Release
+    runs-on: ubuntu-18.04
+    needs: Build
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: ${{ github.ref }}
+
+    - name: Download artifacts
+      uses: actions/download-artifact@v2
+      with:
+        name: tmcevents-linux-amd64.tar.gz
+        path: ./
+
+    - name: Download artifacts
+      uses: actions/download-artifact@v2
+      with:
+        name: tmcevents-windows-amd64.zip
+        path: ./
+
+    - name: Download artifacts
+      uses: actions/download-artifact@v2
+      with:
+        name: tmcevents-darwin-amd64.tar.gz
+        path: ./
+
+    - name: debug
+      run: ls -lR
+
+    - name: Upload tmcevents-linux-amd64.tar.gz
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./tmcevents-linux-amd64.tar.gz
+        asset_name: tmcevents-linux-amd64.tar.gz
+        asset_content_type: application/gzip
+
+    - name: Upload tmcevents-windows-amd64.zip
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./tmcevents-windows-amd64.zip
+        asset_name: tmcevents-windows-amd64.zip
+        asset_content_type: application/zip
+
+    - name: Upload tmcevents-darwin-amd64.tar.gz
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./tmcevents-darwin-amd64.tar.gz
+        asset_name: tmcevents-darwin-amd64.tar.gz
+        asset_content_type: application/gzip    
